@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写Promise</title>
+</head>
+
+<body>
+  <script>
+    // 定义类
+    class myPromise {
+      // 添加构造函数
+      constructor(func) {
+        // 定义resolve和reject
+        const resolve = (result) => {
+          console.log("resolve执行", result);
+        }
+        const reject = (result) => {
+          console.log("reject执行", result);
+        }
+        // 执行回调函数
+        func(resolve, reject)
+      }
+    }
+
+
+    // ------------- 测试代码 -------------
+    const p = new myPromise((resolve, reject) => {
+      console.log('执行了!')
+      resolve('success')
+      // reject('error')
+    })
+  </script>
+</body>
+
+</html>

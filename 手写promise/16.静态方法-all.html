@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写Promise</title>
+</head>
+
+<body>
+  <script>
+    function runAsynctask(callback) {
+      if (typeof queueMicrotask === 'function') {
+        queueMicrotask(callback)
+      } else if (typeof MutationObserver === 'function') {
+        const mob = new MutationObserver(callback)
+        const divNode = document.createElement('div')
+        mob.observe(divNode, { childList: true })
+        divNode.innerText = 'tom'
+      } else {
+        setTimeout(callback, 0)
+      }
+    }
+
+    function resolvePromise(res, p, resolve, reject) {
+      if (res === p) {
+        throw new TypeError('Chaining cycle detected for promise #<Promise>')
+      }
+      if (res instanceof myPromise) {
+        res.then(val => resolve(val), err => reject(err))
+
+      } else {
+        resolve(res)
+      }
+    }
+
+
+    const PENDING = 'pending'
+    const FULFILLED = 'fulfilled'
+    const REJECTED = 'rejected'
+    class myPromise {
+      state = PENDING
+      result = undefined
+      #handlers = []
+      constructor(func) {
+        const resolve = (result) => {
+          if (this.state == PENDING) {
+            this.state = FULFILLED
+            this.result = result
+            this.#handlers.forEach(({ onFulfilled }) => {
+              onFulfilled(this.result)
+            })
+          }
+        }
+        const reject = (result) => {
+          if (this.state == PENDING) {
+            this.state = REJECTED
+            this.result = result
+            this.#handlers.forEach(({ onRejected }) => {
+              onRejected(this.result)
+            })
+          }
+        }
+        // 处理异常
+        try {
+          func(resolve, reject)
+        } catch (error) {
+          reject(error)
+        }
+      }
+
+      then(onFulfilled, onRejected) {
+        onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : x => x
+        onRejected = typeof onRejected === 'function' ? onRejected : x => { throw x }
+
+        const p = new myPromise((resolve, reject) => {
+          if (this.state === FULFILLED) {
+            runAsynctask(() => {
+              try {
+                const res = onFulfilled(this.result)
+                resolvePromise(res, p, resolve, reject)
+              } catch (error) {
+                reject(error)
+              }
+            })
+          } else if (this.state === REJECTED) {
+            runAsynctask(() => {
+              try {
+                const res = onRejected(this.result)
+                resolvePromise(res, p, resolve, reject)
+              } catch (error) {
+                reject(error)
+              }
+            })
+          } else if (this.state === PENDING) {
+            this.#handlers.push({
+              onFulfilled: () => {
+                runAsynctask(() => {
+                  try {
+                    const res = onFulfilled(this.result)
+                    resolvePromise(res, p, resolve, reject)
+                  } catch (error) {
+                    reject(error)
+                  }
+                })
+              },
+              onRejected: () => {
+                runAsynctask(() => {
+                  try {
+                    const res = onRejected(this.result)
+                    resolvePromise(res, p, resolve, reject)
+                  } catch (error) {
+                    reject(error)
+                  }
+                })
+              },
+            })
+          }
+        })
+        return p
+      }
+
+      catch(onRejected) {
+        return this.then(undefined, onRejected)
+      }
+
+      finally(onFinally) {
+        return this.then(onFinally, onFinally)
+      }
+
+      // 定义静态方法resolve
+      static resolve(value) {
+        if (value instanceof myPromise) {
+          return value
+        }
+        return new myPromise((resolve) => {
+          resolve(value)
+        })
+      }
+
+      // 定义静态方法reject
+      static reject(value) {
+        return new myPromise((undefined, reject) => {
+          reject(value)
+        })
+      }
+
+      // 定义静态方法race
+      static race(arr) {
+        return new myPromise((resolve, reject) => {
+          if (!Array.isArray(arr)) {
+            return reject(new TypeError('Argument is not iterable'))
+          }
+          arr.forEach(p => {
+            myPromise.resolve(p).then(res => { resolve(res) }, err => { reject(err) })
+          })
+        })
+      }
+
+      // 定义静态方法all
+      static all(arr) {
+        // 返回promise实例
+        return new myPromise((resolve, reject) => {
+          // 判断是否为数组
+          if (!Array.isArray(arr)) {
+            return reject(new TypeError('Argument is not iterable'))
+          }
+          // 空数组直接兑现
+          arr.length === 0 && resolve(arr)
+
+          // 记录结果
+          const results = []
+          // 记录次数判断是否全部兑现
+          let count = 0
+          arr.forEach((p, index) => {
+            myPromise.resolve(p).then(
+              res => {
+                results[index] = res
+                count++
+                // 全部兑现
+                count === arr.length && resolve(results)
+              },
+              err => {
+                // 处理第一个拒绝
+                reject(err)
+              })
+          })
+        })
+      }
+
+
+    }
+
+
+    // ------------- 测试代码 -------------
+    const p1 = myPromise.resolve(1)
+    const p2 = new myPromise((resolve, reject) => {
+      setTimeout(() => {
+        resolve(2)
+        // reject('error')
+      }, 1000)
+    })
+    const p3 = 3
+
+    myPromise.all([p1, p2, p3]).then(res => {
+      // myPromise.all().then(res => {
+      // myPromise.all([]).then(res => {
+      console.log('res:', res)
+    }, err => {
+      console.log('err:', err)
+    })
+
+  </script>
+</body>
+
+</html>

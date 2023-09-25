@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写Promise</title>
+</head>
+
+<body>
+  <script>
+    // 保存变量
+    const PENDING = 'pending'
+    const FULFILLED = 'fulfilled'
+    const REJECTED = 'rejected'
+    class myPromise {
+      // 添加状态
+      state = PENDING
+      // 添加原因
+      result = undefined
+      constructor(func) {
+        const resolve = (result) => {
+          // 状态不可逆
+          if (this.state == PENDING) {
+            // 修改状态和原因
+            this.state = FULFILLED
+            this.result = result
+          }
+        }
+        const reject = (result) => {
+          if (this.state == PENDING) {
+            this.state = REJECTED
+            this.result = result
+          }
+        }
+        func(resolve, reject)
+      }
+    }
+
+
+    // ------------- 测试代码 -------------
+    const p = new myPromise((resolve, reject) => {
+      resolve('success') // pending -> fulfilled
+      reject('error') // pending -> rejected
+    })
+    // p.state // 状态
+    // p.result // 原因
+  </script>
+</body>
+
+</html>

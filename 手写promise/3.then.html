@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写Promise</title>
+</head>
+
+<body>
+  <script>
+    const PENDING = 'pending'
+    const FULFILLED = 'fulfilled'
+    const REJECTED = 'rejected'
+    class myPromise {
+      state = PENDING
+      result = undefined
+      constructor(func) {
+        const resolve = (result) => {
+          if (this.state == PENDING) {
+            this.state = FULFILLED
+            this.result = result
+          }
+        }
+        const reject = (result) => {
+          if (this.state == PENDING) {
+            this.state = REJECTED
+            this.result = result
+          }
+        }
+        func(resolve, reject)
+      }
+
+      // 添加then方法
+      then(onFulfilled, onRejected) {
+        // 判断是否为函数
+        onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : x => x
+        onRejected = typeof onRejected === 'function' ? onRejected : x => { throw x }
+        // 执行回调
+        if (this.state === FULFILLED) {
+          onFulfilled(this.result)
+        } else if (this.state === REJECTED) {
+          onRejected(this.result)
+        }
+      }
+    }
+
+
+    // ------------- 测试代码 -------------
+    const p = new myPromise((resolve, reject) => {
+      resolve('success')
+      // reject('error')
+    })
+
+    p.then(res => {
+      console.log('成功回调:', res)
+    }, err => {
+      console.log('失败回调:', err)
+    })
+    // p.then(res => {
+    //   console.log('成功回调:', res)
+    // })
+  </script>
+</body>
+
+</html>

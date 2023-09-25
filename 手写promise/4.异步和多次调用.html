@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写Promise</title>
+</head>
+
+<body>
+  <script>
+    const PENDING = 'pending'
+    const FULFILLED = 'fulfilled'
+    const REJECTED = 'rejected'
+    class myPromise {
+      state = PENDING
+      result = undefined
+      // 定义实例属性
+      #handlers = []
+      constructor(func) {
+        const resolve = (result) => {
+          if (this.state == PENDING) {
+            this.state = FULFILLED
+            this.result = result
+            // 成功回调
+            this.#handlers.forEach(({ onFulfilled }) => {
+              onFulfilled(this.result)
+            })
+          }
+        }
+        const reject = (result) => {
+          if (this.state == PENDING) {
+            this.state = REJECTED
+            this.result = result
+            // 失败回调
+            this.#handlers.forEach(({ onRejected }) => {
+              onRejected(this.result)
+            })
+          }
+        }
+        func(resolve, reject)
+      }
+      then(onFulfilled, onRejected) {
+        onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : x => x
+        onRejected = typeof onRejected === 'function' ? onRejected : x => { throw x }
+        if (this.state === FULFILLED) {
+          onFulfilled(this.result)
+        } else if (this.state === REJECTED) {
+          onRejected(this.result)
+        } else if (this.state === PENDING) {
+          // 保存回调函数
+          this.#handlers.push({
+            onFulfilled,
+            onRejected
+          })
+        }
+      }
+    }
+
+
+    // ------------- 测试代码 -------------
+    const p = new myPromise((resolve, reject) => {
+      setTimeout(() => {
+        // resolve('success')
+        reject('error')
+      }, 2000);
+    })
+
+    p.then(res => {
+      console.log('then1:', res)
+    }, err => {
+      console.log('then1:', err)
+    })
+
+    p.then(res => {
+      console.log('then2:', res)
+    }, err => {
+      console.log('then2:', err)
+    })
+  </script>
+</body>
+
+</html>

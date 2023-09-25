@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写Promise</title>
+</head>
+
+<body>
+  <script>
+    function runAsynctask(callback) {
+      if (typeof queueMicrotask === 'function') {
+        queueMicrotask(callback)
+      } else if (typeof MutationObserver === 'function') {
+        const mob = new MutationObserver(callback)
+        const divNode = document.createElement('div')
+        mob.observe(divNode, { childList: true })
+        divNode.innerText = 'tom'
+      } else {
+        setTimeout(callback, 0)
+      }
+    }
+
+
+    const PENDING = 'pending'
+    const FULFILLED = 'fulfilled'
+    const REJECTED = 'rejected'
+    class myPromise {
+      state = PENDING
+      result = undefined
+      #handlers = []
+      constructor(func) {
+        const resolve = (result) => {
+          if (this.state == PENDING) {
+            this.state = FULFILLED
+            this.result = result
+            this.#handlers.forEach(({ onFulfilled }) => {
+              onFulfilled(this.result)
+            })
+          }
+        }
+        const reject = (result) => {
+          if (this.state == PENDING) {
+            this.state = REJECTED
+            this.result = result
+            this.#handlers.forEach(({ onRejected }) => {
+              onRejected(this.result)
+            })
+          }
+        }
+        func(resolve, reject)
+      }
+
+      then(onFulfilled, onRejected) {
+        onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : x => x
+        onRejected = typeof onRejected === 'function' ? onRejected : x => { throw x }
+        // 返回新的promise实例
+        const p = new myPromise((resolve, reject) => {
+          if (this.state === FULFILLED) {
+            runAsynctask(() => {
+              // 处理返回值
+              try {
+                const res = onFulfilled(this.result)
+                resolve(res)
+              } catch (error) {
+                reject(error)
+              }
+            })
+          } else if (this.state === REJECTED) {
+            runAsynctask(() => {
+              onRejected(this.result)
+            })
+          } else if (this.state === PENDING) {
+            this.#handlers.push({
+              onFulfilled: () => {
+                runAsynctask(() => {
+                  onFulfilled(this.result)
+                })
+              },
+              onRejected: () => {
+                runAsynctask(() => {
+                  onRejected(this.result)
+                })
+              },
+            })
+          }
+        })
+        return p
+      }
+    }
+
+    // ------------- 测试代码 -------------
+    const p = new myPromise((resolve, reject) => {
+      resolve(1)
+    })
+    p.then(res => {
+      console.log('p1:', res)
+      throw 'error'
+      return 2
+    }).then(res => {
+      console.log('p2:', res)
+    }, err => {
+      console.log('p2:', err)
+    })
+  </script>
+</body>
+
+</html>
